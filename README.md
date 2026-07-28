@@ -12,11 +12,11 @@ These are documented in code as `# LIMITATION:` comments at the relevant
 function, not silently fixed, because fixing them changes the numerical
 output of the backtest:
 
-1. **`kupiec_test` key-alignment fragility** (`backtest.py`): the function
+1. **`kupiec_test` key-alignment fragility**: the function
    combines two dicts via `pd.DataFrame({...})`, which aligns entries by key.
    This is only safe if both dicts contain exactly the same key set — if
    they ever diverge, pandas introduces `NaN`s silently rather than raising.
-2. **Portfolio-weight look-ahead bias** (`backtest.py`, `compute_actual_return`):
+2. **Portfolio-weight look-ahead bias**:
    the backtest applies a single fixed weight vector across the entire
    rolling-window test. If that vector was derived from optimizing over the
    full sample (as the notebook does), the "realized" returns used to score
