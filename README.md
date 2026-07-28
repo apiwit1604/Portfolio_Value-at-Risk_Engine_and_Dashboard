@@ -28,6 +28,6 @@ output of the backtest:
 VaR is stored as a (typically negative) **return**, not a positive loss
 magnitude, throughout this codebase. A more negative VaR means a larger
 expected loss at the given confidence level. This affects how the
-optimization objectives are framed — see the docstring in `optimization.py`
+optimization objectives are framed — see the docstring 
 for the historical naming issue this caused (`find_min_var_portfolio` →
 renamed to `find_min_loss_portfolio`).
