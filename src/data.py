@@ -19,20 +19,33 @@ import numpy as np
 import pandas as pd
 import yfinance as yf
 
-
 def load_close_prices(tickers: list[str], start: str, end: str) -> pd.DataFrame:
     """
     Fetch each ticker's daily close price and merge into one DataFrame.
     """
-    series_list = []
-    for ticker in tickers:
+    close_prices = []
+    for t in tickers:
         try:
-            df = yf.Ticker(ticker).history(start=start, end=end, interval="1d")["Close"]
+            # แก้ไขตัวแปรจาก ticker เป็น t
+            df = yf.Ticker(t).history(start=start, end=end, interval="1d")["Close"]
+            
+            if df.empty:
+                print(f"[warning] No data returned for {t}")
+                continue
+                
             df.index = df.index.tz_localize(None).normalize()
             df.name = t
             close_prices.append(df)
+            
         except Exception as e:
-            print(f"[warning] could not fetch {ticker}: {e}")
+            # แก้ไขตัวแปรจาก ticker เป็น t
+            print(f"[warning] could not fetch {t}: {e}")
+
+    # ย้าย pd.concat ออกมานอกลูป และป้องกันกรณีไม่มีข้อมูล
+    if not close_prices:
+        print("[error] No data fetched for any tickers.")
+        return pd.DataFrame()
+        
     prices = pd.concat(close_prices, axis=1)
     return prices
 
