@@ -14,8 +14,15 @@ import numpy as np
 # ---------------------------------------------------------------------------
 # Universe & data window
 # ---------------------------------------------------------------------------
-TICKERS = ["NVDA", "AAL", "META", "TSLA", "ASML"]
-START_DATE = "2015-12-31"
+TICKERS = [
+    "AAPL", "MSFT", "NVDA", "AMZN", "GOOGL", "BRK-B", "JPM",
+    "SPY", "QQQ", "VTI", "BND", "GLD", "EFA", "VYM",
+    "VFIAX", "VTSAX", "FXAIX", "SWPPX", "VWENX", "PRGFX", "FCNTX",
+    "ASML", "TSM", "7203.T", "0700.HK", "NOVO-B.CO", "LVMUY", "RELIANCE.NS",
+    "EURUSD=X", "USDJPY=X", "GBPUSD=X", "USDTHB=X", "AUDUSD=X", "USDCNY=X", "USDCAD=X"
+]
+
+START_DATE = "2020-12-31"
 END_DATE = "2025-12-31"
 
 # ---------------------------------------------------------------------------
