@@ -27,14 +27,14 @@ def load_close_prices(tickers: list[str], start: str, end: str) -> pd.DataFrame:
     series_list = []
     for ticker in tickers:
         try:
-            close = yf.Ticker(ticker).history(start=start, end=end, interval="1d")["Close"]
-            close.name = ticker
-            series_list.append(close)
+            df = yf.Ticker(ticker).history(start=start, end=end, interval="1d")["Close"]
+            df.index = df.index.tz_localize(None).normalize()
+            df.name = t
+            close_prices.append(df)
         except Exception as e:
             print(f"[warning] could not fetch {ticker}: {e}")
-    prices = pd.concat(series_list, axis=1)
+    prices = pd.concat(close_prices, axis=1)
     return prices
-
 
 def compute_returns(close_prices: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
     """
