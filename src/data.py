@@ -26,7 +26,6 @@ def load_close_prices(tickers: list[str], start: str, end: str) -> pd.DataFrame:
     close_prices = []
     for t in tickers:
         try:
-            # แก้ไขตัวแปรจาก ticker เป็น t
             df = yf.Ticker(t).history(start=start, end=end, interval="1d")["Close"]
             
             if df.empty:
@@ -38,10 +37,8 @@ def load_close_prices(tickers: list[str], start: str, end: str) -> pd.DataFrame:
             close_prices.append(df)
             
         except Exception as e:
-            # แก้ไขตัวแปรจาก ticker เป็น t
             print(f"[warning] could not fetch {t}: {e}")
 
-    # ย้าย pd.concat ออกมานอกลูป และป้องกันกรณีไม่มีข้อมูล
     if not close_prices:
         print("[error] No data fetched for any tickers.")
         return pd.DataFrame()
