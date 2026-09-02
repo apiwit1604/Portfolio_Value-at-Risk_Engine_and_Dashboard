@@ -8,13 +8,6 @@ package (`var_engine/`) and an interactive **Streamlit dashboard**
 (`app.py`) where you can change assets, tickers, dates, and the investment
 horizon without touching code.
 
-<p align="center">
-  <a href="https://portfolio-value-at-risk-engine-and-dashboard.streamlit.app/">
-    <img src="./images/dashboard_images.png" alt="Dashboard" width="700">
-  </a>
-  <br>
-  <sub>Click image to navigate to the dashboard.</sub>
-</p>
 
 Built on live market data: **[Yahoo Finance](https://finance.yahoo.com)**
 (via `yfinance`) for stock/FX/option-underlying prices, and
