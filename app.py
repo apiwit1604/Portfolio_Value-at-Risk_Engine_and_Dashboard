@@ -24,57 +24,7 @@ from var_engine import (
     kupiec_test,
     time_series_var,
 )
-
-
-def plot_portfolio_var_breaches(bt_output):
-    """Build an interactive Plotly VaR backtest chart for Streamlit."""
-    import plotly.graph_objects as go
-
-    df = bt_output.copy()
-    df.index = pd.to_datetime(df.index)
-
-    fig = go.Figure()
-    fig.add_trace(go.Scatter(
-        x=df.index, y=df["return_port"], mode="lines", name="Realized return",
-        line=dict(width=2), hovertemplate="%{x|%Y-%m-%d}<br>Realized: %{y:.4%}<extra></extra>",
-    ))
-    for col, label, dash in [
-        ("var_parametric", "Parametric VaR", "solid"),
-        ("var_historical", "Historical VaR", "dash"),
-        ("var_mc", "Monte Carlo VaR", "dot"),
-    ]:
-        fig.add_trace(go.Scatter(
-            x=df.index, y=-df[col], mode="lines", name=label,
-            line=dict(width=1.8, dash=dash),
-            hovertemplate="%{x|%Y-%m-%d}<br>" + label + ": %{y:.4%}<extra></extra>",
-        ))
-
-    # Mark breaches for each VaR method. A breach occurs when the realized
-    # return falls below the corresponding negative VaR threshold.
-    for col, label in [
-        ("var_parametric", "Parametric breaches"),
-        ("var_historical", "Historical breaches"),
-        ("var_mc", "Monte Carlo breaches"),
-    ]:
-        mask = df["return_port"] < -df[col]
-        if mask.any():
-            fig.add_trace(go.Scatter(
-                x=df.index[mask], y=df.loc[mask, "return_port"],
-                mode="markers", name=label, marker=dict(size=9, symbol="x"),
-                hovertemplate="%{x|%Y-%m-%d}<br>Realized: %{y:.4%}<extra></extra>",
-            ))
-
-    fig.update_layout(
-        title="Portfolio VaR Backtest — Interactive",
-        xaxis_title="Date", yaxis_title="Return / VaR",
-        hovermode="x unified", template="plotly_white",
-        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0),
-        margin=dict(l=60, r=30, t=90, b=50),
-        height=560,
-    )
-    fig.add_hline(y=0, line_width=1)
-    return fig
-
+from var_engine.display import plot_portfolio_var_breaches
 from var_engine.ui_helpers import (
     CONFIDENCE_PRESETS,
     DEFAULT_PORTFOLIO_ROWS,
@@ -417,7 +367,7 @@ if "last_result" in st.session_state:
             )
         else:
             fig = plot_portfolio_var_breaches(bt_output)
-            st.plotly_chart(fig, width="stretch", config={"displaylogo": False, "scrollZoom": True})
+            st.pyplot(fig)
 
             st.markdown("**Kupiec Proportion-of-Failures test**")
             kupiec_rows = []
