@@ -366,7 +366,7 @@ if "last_result" in st.session_state:
             )
         else:
             fig = plot_portfolio_var_breaches(bt_output)
-            st.pyplot(fig)
+            st.plotly_chart(fig, width="stretch", config={"displaylogo": False, "scrollZoom": True})
 
             st.markdown("**Kupiec Proportion-of-Failures test**")
             kupiec_rows = []
