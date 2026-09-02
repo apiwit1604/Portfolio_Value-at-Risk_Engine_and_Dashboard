@@ -108,7 +108,6 @@ not just the ones in the example:
 | Market | Example tickers |
 |---|---|
 | US stocks | `AAPL`, `NVDA`, `MSFT`, `TSLA` |
-| Thai SET stocks | `PTT.BK`, `AOT.BK`, `SCB.BK`, `KBANK.BK` |
 | FX spot | `THB=X`, `EURUSD=X`, `JPY=X` |
 | Crypto | `BTC-USD`, `ETH-USD` |
 | Indices | `^GSPC` (S&P 500), `^SET.BK` |
