@@ -131,9 +131,8 @@ with st.sidebar:
 # =======================================================================
 st.subheader("1. Portfolio")
 st.caption(
-    "Any ticker on [Yahoo Finance](https://finance.yahoo.com) works in the **ticker** column — "
-    "US stocks (`AAPL`, `NVDA`), Thai SET stocks (`PTT.BK`, `AOT.BK`), FX (`THB=X`, `EURUSD=X`), "
-    "crypto (`BTC-USD`), and more. Add/remove rows directly in the table."
+    "Any ticker on Yahoo Finance works in the ticker column - US stocks (AAPL, NVDA), FX (THB=X, EURUSD=X), and more. Add/remove rows directly in the table.\n\n"
+    "However, please note that this setup is fully optimized primarily for US-listed equities. While non-US markets (such as the Thai Stock Exchange) and cryptocurrencies can still be fetched for basic price tracking, advanced programmatic features-such as automated dividend data, detailed financial statements, and real-time fundamentals-may be incomplete, delayed, or inconsistent due to Yahoo Finance's API limitations for non-US assets and crypto pairs."
 )
 
 if "portfolio_df" not in st.session_state:
