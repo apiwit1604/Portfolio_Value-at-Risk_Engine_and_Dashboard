@@ -24,7 +24,57 @@ from var_engine import (
     kupiec_test,
     time_series_var,
 )
-from var_engine.display import plot_portfolio_var_breaches
+
+
+def plot_portfolio_var_breaches(bt_output):
+    """Build an interactive Plotly VaR backtest chart for Streamlit."""
+    import plotly.graph_objects as go
+
+    df = bt_output.copy()
+    df.index = pd.to_datetime(df.index)
+
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(
+        x=df.index, y=df["return_port"], mode="lines", name="Realized return",
+        line=dict(width=2), hovertemplate="%{x|%Y-%m-%d}<br>Realized: %{y:.4%}<extra></extra>",
+    ))
+    for col, label, dash in [
+        ("var_parametric", "Parametric VaR", "solid"),
+        ("var_historical", "Historical VaR", "dash"),
+        ("var_mc", "Monte Carlo VaR", "dot"),
+    ]:
+        fig.add_trace(go.Scatter(
+            x=df.index, y=-df[col], mode="lines", name=label,
+            line=dict(width=1.8, dash=dash),
+            hovertemplate="%{x|%Y-%m-%d}<br>" + label + ": %{y:.4%}<extra></extra>",
+        ))
+
+    # Mark breaches for each VaR method. A breach occurs when the realized
+    # return falls below the corresponding negative VaR threshold.
+    for col, label in [
+        ("var_parametric", "Parametric breaches"),
+        ("var_historical", "Historical breaches"),
+        ("var_mc", "Monte Carlo breaches"),
+    ]:
+        mask = df["return_port"] < -df[col]
+        if mask.any():
+            fig.add_trace(go.Scatter(
+                x=df.index[mask], y=df.loc[mask, "return_port"],
+                mode="markers", name=label, marker=dict(size=9, symbol="x"),
+                hovertemplate="%{x|%Y-%m-%d}<br>Realized: %{y:.4%}<extra></extra>",
+            ))
+
+    fig.update_layout(
+        title="Portfolio VaR Backtest — Interactive",
+        xaxis_title="Date", yaxis_title="Return / VaR",
+        hovermode="x unified", template="plotly_white",
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0),
+        margin=dict(l=60, r=30, t=90, b=50),
+        height=560,
+    )
+    fig.add_hline(y=0, line_width=1)
+    return fig
+
 from var_engine.ui_helpers import (
     CONFIDENCE_PRESETS,
     DEFAULT_PORTFOLIO_ROWS,
@@ -131,8 +181,9 @@ with st.sidebar:
 # =======================================================================
 st.subheader("1. Portfolio")
 st.caption(
-    "Any ticker on [Yahoo Finance](https://finance.yahoo.com) works in the **ticker** column — US stocks (AAPL, NVDA), FX (THB=X, EURUSD=X), and more. Add/remove rows directly in the table.\n\n"
-    "However, please note that this setup is fully optimized primarily for US-listed equities. While non-US markets (such as the Thai Stock Exchange) and cryptocurrencies can still be fetched for basic price tracking, advanced programmatic features—such as automated dividend data, detailed financial statements, and real-time fundamentals—may be incomplete, delayed, or inconsistent due to Yahoo Finance's API limitations for non-US assets and crypto pairs."
+    "Any ticker on [Yahoo Finance](https://finance.yahoo.com) works in the **ticker** column — "
+    "US stocks (`AAPL`, `NVDA`), Thai SET stocks (`PTT.BK`, `AOT.BK`), FX (`THB=X`, `EURUSD=X`), "
+    "crypto (`BTC-USD`), and more. Add/remove rows directly in the table."
 )
 
 if "portfolio_df" not in st.session_state:
@@ -329,11 +380,11 @@ if "last_result" in st.session_state:
 
     bt1, bt2, bt3 = st.columns(3)
     with bt1:
-        n_test = st.slider("Out-of-sample days to test", 10, 1000, 100)
+        n_test = st.slider("Out-of-sample days to test", 10, 250, 60)
     with bt2:
         window_size = st.slider("Rolling estimation window (days)", 60, 500, 250)
     with bt3:
-        bt_mc_sims = st.number_input("MC sims per day (backtest)", 10_000, 100_000, 10_000, 10_000)
+        bt_mc_sims = st.number_input("MC sims per day (backtest)", 500, 50_000, 5_000, 500)
 
     if st.button("▶ Run backtest"):
         start_str, end_str = st.session_state.last_dates
