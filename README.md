@@ -1,6 +1,6 @@
 # Portfolio Value-at-Risk Engine & Dashboard
 
-
+Click image to navigate to the dashboard.
 [![คำอธิบายรูปภาพ](./images/dashboard_images.png)](https://portfolio-value-at-risk-engine-and-dashboard.streamlit.app/)
 
 A multi-asset **Value-at-Risk (VaR)** engine — bonds, stocks, FX, and European
