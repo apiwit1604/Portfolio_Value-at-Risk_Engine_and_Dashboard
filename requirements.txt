@@ -1,7 +1,14 @@
-streamlit>=1.30.0
-plotly>=5.18.0
-pandas>=2.0.0
-numpy>=1.24.0
-scipy>=1.10.0
-yfinance>=0.2.35
-requests>=2.31.0
+# Core engine
+numpy>=1.26
+pandas>=2.1
+scipy>=1.11
+requests>=2.31
+yfinance>=0.2.40
+
+# Dashboard
+streamlit>=1.32
+plotly>=5.20
+
+# Plots (backtest chart, CLI example)
+matplotlib>=3.8
+seaborn>=0.13
