@@ -138,7 +138,7 @@ def plot_portfolio_var_breaches_interactive(df, return_col="return_port", var_co
         hovermode="x unified",
         template="plotly_white",
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0),
-        margin=dict(l=40, r=20, t=60, b=40),
+        margin=dict(l=40, r=20, t=100, b=40),
         height=500,
     )
     return fig
