@@ -44,9 +44,9 @@ def plot_portfolio_var_breaches(df, return_col="return_port", var_cols=None,
 
     if var_cols is None:
         var_cols = {
-            "var_parametric": ("#FF6F00", "--", "Parametric VaR"),
-            "var_historical": ("#CCFF00", "--", "Historical VaR"),
-            "var_mc": ("#7fff00", "--", "Monte Carlo VaR"),
+            "var_parametric": ("#E0FF00", "--", "Parametric VaR"),
+            "var_historical": ("#FF6F00", "--", "Historical VaR"),
+            "var_mc": ("#7FE500", "--", "Monte Carlo VaR"),
         }
 
     plot_data = df.copy()
@@ -95,9 +95,9 @@ def plot_portfolio_var_breaches_interactive(df, return_col="return_port", var_co
 
     if var_cols is None:
         var_cols = {
-            "var_parametric": ("#1f77b4", "Parametric VaR"),
-            "var_historical": ("#2ca02c", "Historical VaR"),
-            "var_mc": ("#ff7f0e", "Monte Carlo VaR"),
+            "var_parametric": ("#E0FF00", "Parametric VaR"),
+            "var_historical": ("#FF6F00", "Historical VaR"),
+            "var_mc": ("#7FE500", "Monte Carlo VaR"),
         }
 
     fig = go.Figure()
