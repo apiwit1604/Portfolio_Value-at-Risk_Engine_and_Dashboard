@@ -236,100 +236,83 @@ try:
         )
         fig_var.update_traces(hovertemplate="<b>%{x}</b><br>Max Loss Estimate: $%{y:,.2f}")
         st.plotly_chart(fig_var, use_container_width=True)
-        
+
     # --- TAB 3: Backtesting & Kupiec Test ---
     with tab3:
         st.markdown("##### 🔍 Historical Backtesting & Kupiec POF Test")
-    
+        
         # Calculate Next Day automatically based on market data End Date
         end_dt = datetime.strptime(end_date, "%Y-%m-%d")
-        next_day_dt = end_dt + timedelta(days=1)
-    
-        # Adjust for weekend: if Saturday (5) or Sunday (6), move to Monday
-        if next_day_dt.weekday() == 5:
-            next_day_dt += timedelta(days=2)
-        elif next_day_dt.weekday() == 6:
-            next_day_dt += timedelta(days=1)
-        
-        next_day = next_day_dt.strftime("%Y-%m-%d")
+        next_day = (end_dt + timedelta(days=1)).strftime("%Y-%m-%d")
 
         col_bt1, col_bt2 = st.columns([1, 3])
         with col_bt1:
-            st.info(f"📅 **Backtest Start Date:** `{next_day}`\n\n*(Automatically set to the next business day following End Date)*")
+            st.info(f"📅 **Backtest Start Date:** `{next_day}`\n\n*(Automatically set to the next day following End Date)*")
             test_days = st.number_input("Out-of-Sample Test Window (Days)", 30, 500, 100)
             run_bt = st.button("🚀 Run Backtest Analysis")
 
         if run_bt:
             with st.spinner("Executing rolling backtest and calculating Kupiec POF test..."):
-                try:
-                    bt_df = time_series_var(
-                        result=res,
-                        target_capital=target_capital,
-                        new_start_date=next_day,
-                        N_test=test_days,
-                        confidence=confidence
-                    )
+                bt_df = time_series_var(
+                    result=res,
+                    target_capital=target_capital,
+                    new_start_date=next_day,
+                    N_test=test_days,
+                    confidence=confidence
+                )
 
-                    if bt_df is None or bt_df.empty:
-                        st.error("⚠️ No backtest data retrieved. Please ensure the backtest date range contains valid market trading days.")
-                    else:
-                        # Interactive Plotly Chart
-                        fig_bt = go.Figure()
+                # Interactive Plotly Chart
+                fig_bt = go.Figure()
 
-                    # Actual Return
-                    fig_bt.add_trace(go.Scatter(
-                        x=bt_df.index, y=bt_df['return_port'],
-                        mode='lines', name='Actual Return',
-                        line=dict(color='black', width=1.5)
-                    ))
+                # Actual Return
+                fig_bt.add_trace(go.Scatter(
+                    x=bt_df.index, y=bt_df['return_port'],
+                    mode='lines', name='Actual Return',
+                    line=dict(color='black', width=1.5)
+                ))
 
-                    # VaR lines
-                    fig_bt.add_trace(go.Scatter(
-                        x=bt_df.index, y=bt_df['var_parametric'],
-                        mode='lines', name='Parametric VaR', line=dict(dash='dash', color='#1f77b4')
-                    ))
-                    fig_bt.add_trace(go.Scatter(
-                        x=bt_df.index, y=bt_df['var_historical'],
-                        mode='lines', name='Historical VaR', line=dict(dash='dash', color='#2ca02c')
-                    ))
-                    fig_bt.add_trace(go.Scatter(
-                        x=bt_df.index, y=bt_df['var_mc'],
-                        mode='lines', name='Monte Carlo VaR', line=dict(dash='dash', color='#ff7f0e')
-                    ))
+                # VaR lines
+                fig_bt.add_trace(go.Scatter(
+                    x=bt_df.index, y=bt_df['var_parametric'],
+                    mode='lines', name='Parametric VaR', line=dict(dash='dash', color='#1f77b4')
+                ))
+                fig_bt.add_trace(go.Scatter(
+                    x=bt_df.index, y=bt_df['var_historical'],
+                    mode='lines', name='Historical VaR', line=dict(dash='dash', color='#2ca02c')
+                ))
+                fig_bt.add_trace(go.Scatter(
+                    x=bt_df.index, y=bt_df['var_mc'],
+                    mode='lines', name='Monte Carlo VaR', line=dict(dash='dash', color='#ff7f0e')
+                ))
 
-                    # Highlight Breaches
-                    breaches = bt_df[bt_df['return_port'] < bt_df['var_parametric']]
-                    fig_bt.add_trace(go.Scatter(
-                        x=breaches.index, y=breaches['return_port'],
-                        mode='markers', name='VaR Breaches',
-                        marker=dict(color='red', size=8, symbol='x')
-                    ))
+                # Highlight Breaches
+                breaches = bt_df[bt_df['return_port'] < bt_df['var_parametric']]
+                fig_bt.add_trace(go.Scatter(
+                    x=breaches.index, y=breaches['return_port'],
+                    mode='markers', name='VaR Breaches',
+                    marker=dict(color='red', size=8, symbol='x')
+                ))
 
-                    fig_bt.update_layout(
-                        title="Realized Portfolio Returns vs. Rolling VaR Estimates",
-                        xaxis_title="Date",
-                        yaxis_title="Return / VaR Level",
-                        hovermode="x unified"
-                    )
-                    st.plotly_chart(fig_bt, use_container_width=True)
+                fig_bt.update_layout(
+                    title="Realized Portfolio Returns vs. Rolling VaR Estimates",
+                    xaxis_title="Date",
+                    yaxis_title="Return / VaR Level",
+                    hovermode="x unified"
+                )
+                st.plotly_chart(fig_bt, use_container_width=True)
 
-                    # Kupiec POF Test Summary
-                    kupiec_res = kupiec_test(bt_df['var_parametric'], bt_df['return_port'], confidence)
-                    
-                    st.markdown("### 📋 Kupiec POF Test Statistical Results")
-                    k1, k2, k3, k4 = st.columns(4)
-                    k1.metric("Observations (N)", f"{kupiec_res['n_obs']} Days")
-                    k2.metric("Total Breaches (x)", f"{kupiec_res['n_breaches']} Times")
-                    k3.metric("Observed / Expected Rate", f"{kupiec_res['breach_rate']:.2%} / {kupiec_res['expected_rate']:.2%}")
-                    
-                    status_color = "green" if kupiec_res['passed'] else "red"
-                    status_text = "PASSED (Model is Accurate)" if kupiec_res['passed'] else "FAILED (Model Risk Unreliable)"
-                    
-                    # Corrected syntax: unsafe_allow_html
-                    k4.markdown(
-                        f"**Model Status:**<br><span style='color:{status_color}; font-size: 18px; font-weight:bold;'>{status_text}</span>", 
-                        unsafe_allow_html=True
-                    )
+                # Kupiec POF Test Summary
+                kupiec_res = kupiec_test(bt_df['var_parametric'], bt_df['return_port'], confidence)
+                
+                st.markdown("### 📋 Kupiec POF Test Statistical Results")
+                k1, k2, k3, k4 = st.columns(4)
+                k1.metric("Observations (N)", f"{kupiec_res['n_obs']} Days")
+                k2.metric("Total Breaches (x)", f"{kupiec_res['n_breaches']} Times")
+                k3.metric("Observed / Expected Rate", f"{kupiec_res['breach_rate']:.2%} / {kupiec_res['expected_rate']:.2%}")
+                
+                status_color = "green" if kupiec_res['passed'] else "red"
+                status_text = "PASSED (Model is Accurate)" if kupiec_res['passed'] else "FAILED (Model Risk Unreliable)"
+                k4.markdown(f"**Model Status:**<br><span style='color:{status_color}; font-size: 18px; font-weight:bold;'>{status_text}</span>", unsafe_unsafe_html=True if 'unsafe_unsafe_html' in locals() else True)
 
 except Exception as e:
     st.error(f"⚠️ Calculation Error: {str(e)}")
