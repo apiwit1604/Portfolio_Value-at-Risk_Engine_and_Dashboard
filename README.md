@@ -72,19 +72,19 @@ var-portfolio-engine/
 ├── app.py                     # Streamlit dashboard (entry point)
 ├── requirements.txt
 ├── .streamlit/config.toml     # dashboard theme
-├── var_engine/                 # the importable engine — no Streamlit dependency here
-│   ├── __init__.py             # public API (see docstring for a code example)
-│   ├── cache.py                 # caches Yahoo Finance / FRED fetches (see Performance notes)
-│   ├── market_data.py            # FRED yield curve download + cubic-spline interpolation
-│   ├── pricing.py                 # per-instrument pricing (ZCB, CB, STK, FX, options/forwards)
-│   ├── assembly.py                 # combines priced assets into one risk matrix
-│   ├── var_models.py                # Parametric / Historical / Monte Carlo VaR, ESG, Sharpe
-│   ├── optimization.py               # build_portfolio(): the 4 weighting strategies
-│   ├── backtest.py                    # rolling VaR backtest + Kupiec test
-│   ├── display.py                      # console pretty-printer + breach plot (CLI use only)
-│   └── ui_helpers.py                    # dashboard table <-> portfolio-dict conversion (unit-testable, no Streamlit import)
+├── var_engine/                # the importable engine — no Streamlit dependency here
+│   ├── __init__.py            # public API (see docstring for a code example)
+│   ├── cache.py               # caches Yahoo Finance / FRED fetches (see Performance notes)
+│   ├── market_data.py         # FRED yield curve download + cubic-spline interpolation
+│   ├── pricing.py             # per-instrument pricing (ZCB, CB, STK, FX, options/forwards)
+│   ├── assembly.py            # combines priced assets into one risk matrix
+│   ├── var_models.py          # Parametric / Historical / Monte Carlo VaR, ESG, Sharpe
+│   ├── optimization.py        # build_portfolio(): the 4 weighting strategies
+│   ├── backtest.py            # rolling VaR backtest + Kupiec test
+│   ├── display.py             # console pretty-printer + breach plot (CLI use only)
+│   └── ui_helpers.py          # dashboard table <-> portfolio-dict conversion (unit-testable, no Streamlit import)
 └── examples/
-    └── run_cli_example.py       # console walkthrough: all 5 strategies + backtests, no dashboard
+    └── run_cli_example.py     # console walkthrough: all 5 strategies + backtests, no dashboard
 ```
 
 The original single 1,000-line notebook export is split so that (a) the
