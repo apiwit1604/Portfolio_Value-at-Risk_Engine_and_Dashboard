@@ -24,7 +24,7 @@ from var_engine import (
     kupiec_test,
     time_series_var,
 )
-from var_engine.display import plot_portfolio_var_breaches
+from var_engine.display import plot_portfolio_var_breaches_interactive
 from var_engine.ui_helpers import (
     CONFIDENCE_PRESETS,
     DEFAULT_PORTFOLIO_ROWS,
@@ -366,8 +366,8 @@ if "last_result" in st.session_state:
                 "has no trading days yet. Try a smaller rolling window or an earlier end date."
             )
         else:
-            fig = plot_portfolio_var_breaches(bt_output)
-            st.pyplot(fig)
+            fig = plot_portfolio_var_breaches_interactive(bt_output)
+            st.plotly_chart(fig, width="stretch")
 
             st.markdown("**Kupiec Proportion-of-Failures test**")
             kupiec_rows = []
