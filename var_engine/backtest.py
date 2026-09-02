@@ -14,164 +14,76 @@ from .market_data import get_fred_yield_curve
 from .var_models import calculate_parametric_var, historical_var, monte_carlo_var
 
 
-def time_series_var(
-    result, 
-    target_capital, 
-    new_start_date, 
-    n_test, 
-    confidence=0.99, 
-    window_size=250, 
-    mc_simulations=10_000, 
-    random_state=None, 
-    progress_callback=None
-):
+def time_series_var(result, target_capital, new_start_date, n_test, confidence=0.99,
+                     window_size=250, mc_simulations=10_000, random_state=None,
+                     progress_callback=None):
+    """
+    Roll a `window_size`-day estimation window forward one day at a
+    time over `n_test` out-of-sample days (starting at
+    `new_start_date`), recomputing Parametric / Historical / Monte
+    Carlo VaR at each step with the position sensitivities from
+    `result` held fixed. Used to backtest whether a portfolio's VaR
+    estimates would actually have covered its realized returns.
+
+    `progress_callback(done, total)`, if given, is called after each
+    day is processed — useful for a Streamlit progress bar, since this
+    function is the slowest one in the engine (up to `n_test` Monte
+    Carlo simulations, each `mc_simulations` draws).
+    """
+    adj_w = np.asarray(result["final_output"]["adj_weight"])
     horizon = 1
 
-    # 1. จัดโครงสร้างพอร์ตและดึง Risk Factors ดั้งเดิม
-    output_num, output_str, final_output = build_portfolio_risk_matrix(
-        result["risk_matrices"], target_capital
-    )
-    risk_columns = list(final_output["risk"])
-    asset_values_0 = pd.Series(result["value_asset"], dtype=float)
-    asset_names = list(asset_values_0.index)
-    n_assets = len(asset_names)
-    n_risks = len(risk_columns)
+    output_num, output_str, _ = build_portfolio_risk_matrix(result["risk_matrices"], target_capital)
 
-    # 2. แปลง Asset Sensitivity เป็น Matrix [Assets x Risks] เพื่อ Vectorize ลด O(N^2)
-    # mapping index ของ risk_columns เพื่อความรวดเร็ว
-    risk_idx_map = {r: i for i, r in enumerate(risk_columns)}
-    asset_risk_matrix = np.zeros((n_assets, n_risks), dtype=float)
-
-    for a_idx, asset_name in enumerate(asset_names):
-        rm = result["risk_matrices"][asset_name]
-        grouped_cf = rm.groupby("risk", as_index=False)["adj_cf"].sum()
-        for _, row in grouped_cf.iterrows():
-            r_name = row["risk"]
-            if r_name in risk_idx_map:
-                r_idx = risk_idx_map[r_name]
-                asset_risk_matrix[a_idx, r_idx] += float(row["adj_cf"])
-
-    # 3. ดึงข้อมูลย้อนหลัง (เพิ่มเป็น 550 Calendar Days เพื่อการันตี 250 Trading Days + Buffer)
-    start_dt = pd.to_datetime(new_start_date) - timedelta(days=550)
+    start_dt = pd.to_datetime(new_start_date) - timedelta(days=366)
     fetch_start_str = start_dt.strftime("%Y-%m-%d")
 
     full_yield_data, x_known = get_fred_yield_curve(fetch_start_str, None)
     _, risk_yields = build_yield_risk(full_yield_data, x_known, output_num["risk"])
     risk_stock = build_stock_risk(output_str["risk"], fetch_start_str, None)
 
-    full_data_risk, _, _ = build_risk_data(risk_yields, risk_stock)
+    full_data_risk = pd.concat([risk_yields, risk_stock], axis=1).dropna()
     full_data_risk.index = pd.to_datetime(full_data_risk.index)
-    full_data_risk = full_data_risk.reindex(columns=risk_columns)
 
-    # 4. กำหนดขอบเขตข้อมูลสำหรับ Testing
     test_start_ts = pd.to_datetime(new_start_date)
     test_data = full_data_risk.loc[full_data_risk.index >= test_start_ts].head(n_test).copy()
 
-    pre_test_dates = full_data_risk.index[full_data_risk.index < test_start_ts]
-    if len(pre_test_dates) == 0:
-        raise ValueError("ไม่มีข้อมูล Market Risk ก่อน new_start_date")
-
-    previous_date = pre_test_dates[-1]
-    current_asset_values = asset_values_0.copy().values # ใช้ Numpy Array เพื่อความเร็ว
-    initial_asset_values = asset_values_0.values
-
     var_p, var_h, var_m = [], [], []
-    realized_returns, valid_dates = [], []
-    adjusted_weight_history = []
+    valid_dates = []
+    total = len(test_data)
 
-    total_steps = len(test_data.index)
-
-    # 5. Main Simulation Loop
-    for step_idx, current_date in enumerate(test_data.index):
-        if progress_callback:
-            progress_callback(step_idx, total_steps)
-
-        historical_slice = full_data_risk.loc[full_data_risk.index < current_date]
+    for i, current_date in enumerate(test_data.index):
+        historical_slice = full_data_risk.loc[full_data_risk.index <= current_date]
         rolling_window = historical_slice.tail(window_size)
 
         if len(rolling_window) < window_size:
+            if progress_callback:
+                progress_callback(i + 1, total)
             continue
 
-        current_portfolio_value = float(np.sum(current_asset_values))
-        if not np.isfinite(current_portfolio_value) or current_portfolio_value <= 0:
-            continue
-
-        # คำนวณ Value Scale ของแต่ละสินทรัพย์ [Assets,]
-        # หากมูลค่าเริ่มต้นเป็น 0 ให้ scale เป็น 0
-        with np.errstate(divide='ignore', invalid='ignore'):
-            value_scales = np.where(initial_asset_values != 0, current_asset_values / initial_asset_values, 0.0)
-
-        # Vectorized Adjustment Weight Calculation:
-        # Scale Sensitivities ของแต่ละสินทรัพย์ -> Sum รวมทั้งพอร์ต -> หารด้วย Port Value
-        scaled_asset_risk = asset_risk_matrix * value_scales[:, np.newaxis] # [Assets x Risks]
-        daily_adj_w = scaled_asset_risk.sum(axis=0) / current_portfolio_value # [Risks,]
-
-        # Calculation Metrics
         mean = rolling_window.mean()
         cov = rolling_window.cov()
 
-        _, _, vp = calculate_parametric_var(
-            horizon, daily_adj_w, mean, cov, confidence
-        )
+        _, _, vp = calculate_parametric_var(horizon, adj_w, mean, cov, confidence)
+        vh = historical_var(rolling_window, result["final_output"], horizon, confidence)
+        vm = monte_carlo_var(rolling_window, result["final_output"], horizon,
+                              n_simulations=mc_simulations, confidence=confidence,
+                              random_state=random_state)
 
-        daily_final_output = final_output.copy()
-        daily_final_output["adj_weight"] = daily_adj_w
-
-        vh = historical_var(
-            rolling_window, daily_final_output, horizon, confidence
-        )
-        
-        # ส่งผ่าน mc_simulations และ random_state ตาม Parameter ใหม่
-        vm = monte_carlo_var(
-            rolling_window,
-            daily_final_output,
-            horizon,
-            n_simulations=mc_simulations,
-            confidence=confidence,
-            random_state=random_state
-        )
-
-        # 6. Mark-to-Market PnL Calculation (แก้ไข Scaling Bug)
-        daily_change = (
-            full_data_risk.loc[current_date] - full_data_risk.loc[previous_date]
-        ).values # [Risks,]
-
-        # PnL ของแต่ละ Asset = Scaled Sensitivities dot Daily Change
-        # ใช้ scaled_asset_risk เพื่อให้สอดคล้องกับ Mark-to-Market จริง ณ มูลค่าปัจจุบัน
-        pnl_by_asset = np.nan_to_num(scaled_asset_risk @ daily_change) # [Assets,]
-
-        total_pnl = float(np.sum(pnl_by_asset))
-        realized_return = total_pnl / current_portfolio_value
-
-        # อัปเดตมูลค่าพอร์ต Buy-and-hold สำหรับวันถัดไป
-        current_asset_values += pnl_by_asset
-
-        # บันทึกผลลัพธ์
         var_p.append(vp)
         var_h.append(vh)
         var_m.append(vm)
-        realized_returns.append(realized_return)
-        adjusted_weight_history.append(daily_adj_w.copy())
         valid_dates.append(current_date)
 
-        previous_date = current_date
-
-    if progress_callback:
-        progress_callback(total_steps, total_steps)
+        if progress_callback:
+            progress_callback(i + 1, total)
 
     output_df = pd.DataFrame({
-        "return_port": realized_returns,
+        "return_port": test_data.loc[valid_dates].dot(adj_w),
         "var_parametric": var_p,
         "var_historical": var_h,
         "var_mc": var_m,
     }, index=valid_dates)
-
-    if adjusted_weight_history:
-        output_df.attrs["adjusted_weights"] = pd.DataFrame(
-            adjusted_weight_history,
-            index=valid_dates,
-            columns=risk_columns,
-        )
 
     return output_df
 
