@@ -47,7 +47,7 @@ def _cached_yield_curve(start_date: str, end_date: str):
     return get_fred_yield_curve(start_date, end_date)
 
 
-st.title("📉 Portfolio Value-at-Risk Dashboard")
+st.title("Portfolio Value-at-Risk Dashboard")
 st.caption(
     "Multi-asset VaR (Parametric / Historical / Monte Carlo), portfolio optimization, "
     "and Kupiec backtesting — built on live Yahoo Finance & FRED data."
