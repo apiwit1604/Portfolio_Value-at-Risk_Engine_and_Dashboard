@@ -1,7 +1,7 @@
 # Portfolio Value-at-Risk Engine & Dashboard
 
 
-![App Screenshot](./images/dashboard_images.png)
+[[App Screenshot](./images/dashboard_images.png)](https://portfolio-value-at-risk-engine-and-dashboard.streamlit.app/)
 
 Dashboard: [Enjoy Now!](https://portfolio-value-at-risk-engine-and-dashboard.streamlit.app/)
 
