@@ -1,6 +1,13 @@
-numpy
-scipy
-pandas
-ipywidgets
-yfinance
-matplotlib
+# Core engine
+numpy>=1.26
+pandas>=2.1
+scipy>=1.11
+requests>=2.31
+yfinance>=0.2.40
+
+# Dashboard
+streamlit>=1.32
+
+# Plots (backtest chart, CLI example)
+matplotlib>=3.8
+seaborn>=0.13
