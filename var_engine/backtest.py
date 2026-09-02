@@ -14,7 +14,7 @@ from .market_data import get_fred_yield_curve
 from .var_models import calculate_parametric_var, historical_var, monte_carlo_var
 
 
-def time_series_var(result, target_capital, new_start_date, N_test, confidence=confidence, window_size=250):
+def time_series_var(result, target_capital, new_start_date, N_test, confidence=0.99, window_size=250):
     """
     Roll a `window_size`-day estimation window forward one day at a
     time over `N_test` out-of-sample days (starting at `new_start_date`).
