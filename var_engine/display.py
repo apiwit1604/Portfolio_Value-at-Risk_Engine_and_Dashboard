@@ -44,9 +44,9 @@ def plot_portfolio_var_breaches(df, return_col="return_port", var_cols=None,
 
     if var_cols is None:
         var_cols = {
-            "var_parametric": ("#DFFF00", "--", "Parametric VaR"),
-            "var_historical": ("#FF8C00", "--", "Historical VaR"),
-            "var_mc": ("#7FFF00", "--", "Monte Carlo VaR"),
+            "var_parametric": ("##FF6F00", "--", "Parametric VaR"),
+            "var_historical": ("#CCFF00", "--", "Historical VaR"),
+            "var_mc": ("#7fff00", "--", "Monte Carlo VaR"),
         }
 
     plot_data = df.copy()
