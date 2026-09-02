@@ -9,7 +9,7 @@ import numpy as np
 import pandas as pd
 from scipy.stats import chi2
 
-from .assembly import build_portfolio_risk_matrix, build_stock_risk, build_yield_risk
+from .assembly import build_portfolio_risk_matrix, build_stock_risk, build_yield_risk, build_risk_data
 from .market_data import get_fred_yield_curve
 from .var_models import calculate_parametric_var, historical_var, monte_carlo_var
 
