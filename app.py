@@ -19,6 +19,8 @@ from var_engine import (
     kupiec_test,
     clear_cache
 )
+from var_engine.assembly import build_risk_data
+
 from var_engine.ui_helpers import (
     TABLE_COLUMNS,
     ASSET_TYPES,
