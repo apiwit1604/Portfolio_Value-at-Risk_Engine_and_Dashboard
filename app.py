@@ -25,7 +25,6 @@ from var_engine import (
     time_series_var,
 )
 
-
 def plot_portfolio_var_breaches(bt_output):
     """Build an interactive Plotly VaR backtest chart for Streamlit."""
     import plotly.graph_objects as go
