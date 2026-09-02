@@ -78,3 +78,67 @@ def plot_portfolio_var_breaches(df, return_col="return_port", var_cols=None,
     ax.margins(x=0)
     fig.tight_layout()
     return fig
+
+def plot_portfolio_var_breaches_interactive(df, return_col="return_port", var_cols=None,
+                                             title="Portfolio Returns vs. Value at Risk (VaR)"):
+    """
+    Plotly version of plot_portfolio_var_breaches() — used by the Streamlit
+    dashboard (st.plotly_chart) instead of the static matplotlib figure so
+    the user can hover any date to see the exact return/VaR values, zoom
+    into a date range, and toggle series on/off by clicking the legend.
+
+    Same breach logic as the matplotlib version (a breach = realized
+    return below that day's VaR line for a given method); returns a
+    plotly.graph_objects.Figure.
+    """
+    import plotly.graph_objects as go
+
+    if var_cols is None:
+        var_cols = {
+            "var_parametric": ("#1f77b4", "Parametric VaR"),
+            "var_historical": ("#2ca02c", "Historical VaR"),
+            "var_mc": ("#ff7f0e", "Monte Carlo VaR"),
+        }
+
+    fig = go.Figure()
+
+    fig.add_trace(go.Scatter(
+        x=df.index, y=df[return_col], mode="lines", name="Portfolio Return",
+        line=dict(color="black", width=1.5),
+        hovertemplate="%{y:.2%}<extra>Portfolio Return</extra>",
+    ))
+
+    for col, (color, label) in var_cols.items():
+        if col not in df.columns:
+            continue
+
+        var_series = df[col]
+        fig.add_trace(go.Scatter(
+            x=df.index, y=var_series, mode="lines", name=label,
+            line=dict(color=color, dash="dash", width=1.5),
+            hovertemplate="%{y:.2%}<extra>" + label + "</extra>",
+        ))
+
+        breaches = df[df[return_col] < var_series]
+        if not breaches.empty:
+            fig.add_trace(go.Scatter(
+                x=breaches.index, y=breaches[return_col], mode="markers",
+                name=f"Breach ({label})",
+                marker=dict(color="red", symbol="x", size=9, line=dict(width=1)),
+                hovertemplate="%{y:.2%}<extra>Breach — " + label + "</extra>",
+            ))
+
+    fig.add_hline(y=0, line=dict(color="gray", width=1))
+
+    fig.update_layout(
+        title=title,
+        xaxis_title="Date",
+        yaxis_title="Return / VaR",
+        yaxis_tickformat=".2%",
+        hovermode="x unified",
+        template="plotly_white",
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0),
+        margin=dict(l=40, r=20, t=60, b=40),
+        height=500,
+    )
+    return fig
