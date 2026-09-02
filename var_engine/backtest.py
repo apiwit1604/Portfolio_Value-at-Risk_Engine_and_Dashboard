@@ -14,36 +14,45 @@ from .market_data import get_fred_yield_curve
 from .var_models import calculate_parametric_var, historical_var, monte_carlo_var
 
 
-def time_series_var(result, target_capital, new_start_date, N_test, confidence=0.99, window_size=250):
-    """
-    Roll a `window_size`-day estimation window forward one day at a
-    time over `N_test` out-of-sample days (starting at `new_start_date`).
-
-    Unlike the original implementation, the portfolio is treated as a
-    buy-and-hold investment: asset values drift with daily market moves,
-    so the effective adjusted risk weights are recalculated each day.
-
-    The existing VaR engines and all other functions are unchanged.
-    """
+def time_series_var(
+    result, 
+    target_capital, 
+    new_start_date, 
+    n_test, 
+    confidence=0.99, 
+    window_size=250, 
+    mc_simulations=10_000, 
+    random_state=None, 
+    progress_callback=None
+):
     horizon = 1
 
-    # Original risk-factor ordering and initial sensitivities.
+    # 1. จัดโครงสร้างพอร์ตและดึง Risk Factors ดั้งเดิม
     output_num, output_str, final_output = build_portfolio_risk_matrix(
         result["risk_matrices"], target_capital
     )
     risk_columns = list(final_output["risk"])
     asset_values_0 = pd.Series(result["value_asset"], dtype=float)
     asset_names = list(asset_values_0.index)
+    n_assets = len(asset_names)
+    n_risks = len(risk_columns)
 
-    # Keep each asset's risk sensitivities so that its market value can be
-    # marked to market using the same linear risk-factor framework already
-    # used elsewhere in the model.
-    asset_risk = {}
-    for asset_name in asset_names:
-        rm = result["risk_matrices"][asset_name].copy()
-        asset_risk[asset_name] = rm.groupby("risk", as_index=False)["adj_cf"].sum()
+    # 2. แปลง Asset Sensitivity เป็น Matrix [Assets x Risks] เพื่อ Vectorize ลด O(N^2)
+    # mapping index ของ risk_columns เพื่อความรวดเร็ว
+    risk_idx_map = {r: i for i, r in enumerate(risk_columns)}
+    asset_risk_matrix = np.zeros((n_assets, n_risks), dtype=float)
 
-    start_dt = pd.to_datetime(new_start_date) - timedelta(days=366)
+    for a_idx, asset_name in enumerate(asset_names):
+        rm = result["risk_matrices"][asset_name]
+        grouped_cf = rm.groupby("risk", as_index=False)["adj_cf"].sum()
+        for _, row in grouped_cf.iterrows():
+            r_name = row["risk"]
+            if r_name in risk_idx_map:
+                r_idx = risk_idx_map[r_name]
+                asset_risk_matrix[a_idx, r_idx] += float(row["adj_cf"])
+
+    # 3. ดึงข้อมูลย้อนหลัง (เพิ่มเป็น 550 Calendar Days เพื่อการันตี 250 Trading Days + Buffer)
+    start_dt = pd.to_datetime(new_start_date) - timedelta(days=550)
     fetch_start_str = start_dt.strftime("%Y-%m-%d")
 
     full_yield_data, x_known = get_fred_yield_curve(fetch_start_str, None)
@@ -54,59 +63,50 @@ def time_series_var(result, target_capital, new_start_date, N_test, confidence=0
     full_data_risk.index = pd.to_datetime(full_data_risk.index)
     full_data_risk = full_data_risk.reindex(columns=risk_columns)
 
+    # 4. กำหนดขอบเขตข้อมูลสำหรับ Testing
     test_start_ts = pd.to_datetime(new_start_date)
-    test_data = full_data_risk.loc[full_data_risk.index >= test_start_ts].head(N_test).copy()
+    test_data = full_data_risk.loc[full_data_risk.index >= test_start_ts].head(n_test).copy()
 
-    # The first test-day return is measured from the last available
-    # pre-test observation, so the weight used for that day's VaR is the
-    # actual weight held at the start of the day.
     pre_test_dates = full_data_risk.index[full_data_risk.index < test_start_ts]
     if len(pre_test_dates) == 0:
-        raise ValueError("No market-risk observation exists before new_start_date.")
+        raise ValueError("ไม่มีข้อมูล Market Risk ก่อน new_start_date")
 
     previous_date = pre_test_dates[-1]
-    current_asset_values = asset_values_0.copy()
+    current_asset_values = asset_values_0.copy().values # ใช้ Numpy Array เพื่อความเร็ว
+    initial_asset_values = asset_values_0.values
 
     var_p, var_h, var_m = [], [], []
     realized_returns, valid_dates = [], []
     adjusted_weight_history = []
 
-    for current_date in test_data.index:
-        # VaR must use information available before the realized return.
+    total_steps = len(test_data.index)
+
+    # 5. Main Simulation Loop
+    for step_idx, current_date in enumerate(test_data.index):
+        if progress_callback:
+            progress_callback(step_idx, total_steps)
+
         historical_slice = full_data_risk.loc[full_data_risk.index < current_date]
         rolling_window = historical_slice.tail(window_size)
 
         if len(rolling_window) < window_size:
             continue
 
-        # Recalculate today's adjusted risk weights from the portfolio
-        # value held at the start of the day.
-        current_portfolio_value = float(current_asset_values.sum())
+        current_portfolio_value = float(np.sum(current_asset_values))
         if not np.isfinite(current_portfolio_value) or current_portfolio_value <= 0:
             continue
 
-        daily_adj_w = np.zeros(len(risk_columns), dtype=float)
+        # คำนวณ Value Scale ของแต่ละสินทรัพย์ [Assets,]
+        # หากมูลค่าเริ่มต้นเป็น 0 ให้ scale เป็น 0
+        with np.errstate(divide='ignore', invalid='ignore'):
+            value_scales = np.where(initial_asset_values != 0, current_asset_values / initial_asset_values, 0.0)
 
-        for asset_name in asset_names:
-            initial_value = float(asset_values_0[asset_name])
-            if initial_value == 0:
-                continue
+        # Vectorized Adjustment Weight Calculation:
+        # Scale Sensitivities ของแต่ละสินทรัพย์ -> Sum รวมทั้งพอร์ต -> หารด้วย Port Value
+        scaled_asset_risk = asset_risk_matrix * value_scales[:, np.newaxis] # [Assets x Risks]
+        daily_adj_w = scaled_asset_risk.sum(axis=0) / current_portfolio_value # [Risks,]
 
-            value_scale = float(current_asset_values[asset_name]) / initial_value
-            rm = asset_risk[asset_name]
-
-            for _, row in rm.iterrows():
-                matches = [
-                    i for i, risk in enumerate(risk_columns)
-                    if risk == row["risk"]
-                ]
-                for i in matches:
-                    daily_adj_w[i] += (
-                        float(row["adj_cf"])
-                        * value_scale
-                        / current_portfolio_value
-                    )
-
+        # Calculation Metrics
         mean = rolling_window.mean()
         cov = rolling_window.cov()
 
@@ -120,38 +120,33 @@ def time_series_var(result, target_capital, new_start_date, N_test, confidence=0
         vh = historical_var(
             rolling_window, daily_final_output, horizon, confidence
         )
+        
+        # ส่งผ่าน mc_simulations และ random_state ตาม Parameter ใหม่
         vm = monte_carlo_var(
             rolling_window,
             daily_final_output,
             horizon,
-            n_simulations=10_000,
+            n_simulations=mc_simulations,
             confidence=confidence,
+            random_state=random_state
         )
 
-        # Mark each asset to market using the same risk sensitivities used
-        # by the original portfolio risk matrix.
+        # 6. Mark-to-Market PnL Calculation (แก้ไข Scaling Bug)
         daily_change = (
-            full_data_risk.loc[current_date]
-            - full_data_risk.loc[previous_date]
-        )
+            full_data_risk.loc[current_date] - full_data_risk.loc[previous_date]
+        ).values # [Risks,]
 
-        pnl_by_asset = {}
-        for asset_name in asset_names:
-            pnl = 0.0
-            for _, row in asset_risk[asset_name].iterrows():
-                risk = row["risk"]
-                if risk in daily_change.index and pd.notna(daily_change[risk]):
-                    pnl += float(row["adj_cf"]) * float(daily_change[risk])
-            pnl_by_asset[asset_name] = pnl
+        # PnL ของแต่ละ Asset = Scaled Sensitivities dot Daily Change
+        # ใช้ scaled_asset_risk เพื่อให้สอดคล้องกับ Mark-to-Market จริง ณ มูลค่าปัจจุบัน
+        pnl_by_asset = np.nan_to_num(scaled_asset_risk @ daily_change) # [Assets,]
 
-        total_pnl = float(sum(pnl_by_asset.values()))
+        total_pnl = float(np.sum(pnl_by_asset))
         realized_return = total_pnl / current_portfolio_value
 
-        # Buy-and-hold: today's end-of-day values become tomorrow's
-        # starting values, so the adjusted weights naturally drift.
-        for asset_name, pnl in pnl_by_asset.items():
-            current_asset_values[asset_name] += pnl
+        # อัปเดตมูลค่าพอร์ต Buy-and-hold สำหรับวันถัดไป
+        current_asset_values += pnl_by_asset
 
+        # บันทึกผลลัพธ์
         var_p.append(vp)
         var_h.append(vh)
         var_m.append(vm)
@@ -161,6 +156,9 @@ def time_series_var(result, target_capital, new_start_date, N_test, confidence=0
 
         previous_date = current_date
 
+    if progress_callback:
+        progress_callback(total_steps, total_steps)
+
     output_df = pd.DataFrame({
         "return_port": realized_returns,
         "var_parametric": var_p,
@@ -168,8 +166,6 @@ def time_series_var(result, target_capital, new_start_date, N_test, confidence=0
         "var_mc": var_m,
     }, index=valid_dates)
 
-    # Preserve the existing output columns while making the daily adjusted
-    # risk weights available for inspection.
     if adjusted_weight_history:
         output_df.attrs["adjusted_weights"] = pd.DataFrame(
             adjusted_weight_history,
@@ -178,7 +174,6 @@ def time_series_var(result, target_capital, new_start_date, N_test, confidence=0
         )
 
     return output_df
-
 
 def kupiec_test(model_var, actual_return, confidence):
     """
