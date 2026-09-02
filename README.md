@@ -1,7 +1,12 @@
 # Portfolio Value-at-Risk Engine & Dashboard
 
-Click image to navigate to the dashboard.
-[![คำอธิบายรูปภาพ](./images/dashboard_images.png)](https://portfolio-value-at-risk-engine-and-dashboard.streamlit.app/)
+<p align="center">
+  <a href="https://portfolio-value-at-risk-engine-and-dashboard.streamlit.app/">
+    <img src="./images/dashboard_images.png" alt="Dashboard" width="700">
+  </a>
+  <br>
+  <sub>Click image to navigate to the dashboard.</sub>
+</p>
 
 A multi-asset **Value-at-Risk (VaR)** engine — bonds, stocks, FX, and European
 options/forwards — with three VaR methodologies (Parametric, Historical,
