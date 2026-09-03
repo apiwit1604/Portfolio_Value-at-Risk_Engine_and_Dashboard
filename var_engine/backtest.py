@@ -35,7 +35,7 @@ def time_series_var(result, target_capital, new_start_date, n_test, confidence=0
 
     output_num, output_str, _ = build_portfolio_risk_matrix(result["risk_matrices"], target_capital)
 
-    start_dt = pd.to_datetime(new_start_date) - timedelta(days=366)
+    start_dt = pd.to_datetime(new_start_date) - timedelta(days=500)
     fetch_start_str = start_dt.strftime("%Y-%m-%d")
 
     full_yield_data, x_known = get_fred_yield_curve(fetch_start_str, None)
