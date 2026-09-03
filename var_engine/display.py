@@ -104,7 +104,7 @@ def plot_portfolio_var_breaches_interactive(df, return_col="return_port", var_co
 
     fig.add_trace(go.Scatter(
         x=df.index, y=df[return_col], mode="lines", name="Portfolio Return",
-        line=dict(color="red", width=1.5),
+        line=dict(color="purple", width=1.5),
         hovertemplate="%{y:.2%}<extra>Portfolio Return</extra>",
     ))
 
