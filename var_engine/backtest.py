@@ -14,77 +14,77 @@ from .market_data import get_fred_yield_curve
 from .var_models import calculate_parametric_var, historical_var, monte_carlo_var
 
 def time_series_var(result, target_capital, new_start_date, n_test, confidence=0.99,
-                     window_size=250, mc_simulations=10_000, random_state=None,
-                     progress_callback=None):
-    """
-    Roll a `window_size`-day estimation window forward one day at a
-    time over `n_test` out-of-sample days (starting at
-    `new_start_date`), recomputing Parametric / Historical / Monte
-    Carlo VaR at each step with the position sensitivities from
-    `result` held fixed. Used to backtest whether a portfolio's VaR
-    estimates would actually have covered its realized returns.
+                     window_size=250, mc_simulations=10_000, random_state=None,
+                     progress_callback=None):
+    """
+    Roll a `window_size`-day estimation window forward one day at a
+    time over `n_test` out-of-sample days (starting at
+    `new_start_date`), recomputing Parametric / Historical / Monte
+    Carlo VaR at each step with the position sensitivities from
+    `result` held fixed. Used to backtest whether a portfolio's VaR
+    estimates would actually have covered its realized returns.
 
-    `progress_callback(done, total)`, if given, is called after each
-    day is processed — useful for a Streamlit progress bar, since this
-    function is the slowest one in the engine (up to `n_test` Monte
-    Carlo simulations, each `mc_simulations` draws).
-    """
-    adj_w = np.asarray(result["final_output"]["adj_weight"])
-    horizon = 1
+    `progress_callback(done, total)`, if given, is called after each
+    day is processed — useful for a Streamlit progress bar, since this
+    function is the slowest one in the engine (up to `n_test` Monte
+    Carlo simulations, each `mc_simulations` draws).
+    """
+    adj_w = np.asarray(result["final_output"]["adj_weight"])
+    horizon = 1
 
-    output_num, output_str, _ = build_portfolio_risk_matrix(result["risk_matrices"], target_capital)
+    output_num, output_str, _ = build_portfolio_risk_matrix(result["risk_matrices"], target_capital)
 
-    start_dt = pd.to_datetime(new_start_date) - timedelta(days=500)
-    fetch_start_str = start_dt.strftime("%Y-%m-%d")
+    start_dt = pd.to_datetime(new_start_date) - timedelta(days=500)
+    fetch_start_str = start_dt.strftime("%Y-%m-%d")
 
-    full_yield_data, x_known = get_fred_yield_curve(fetch_start_str, None)
-    _, risk_yields = build_yield_risk(full_yield_data, x_known, output_num["risk"])
-    risk_stock = build_stock_risk(output_str["risk"], fetch_start_str, None)
+    full_yield_data, x_known = get_fred_yield_curve(fetch_start_str, None)
+    _, risk_yields = build_yield_risk(full_yield_data, x_known, output_num["risk"])
+    risk_stock = build_stock_risk(output_str["risk"], fetch_start_str, None)
 
-    full_data_risk = pd.concat([risk_yields, risk_stock], axis=1).dropna()
-    full_data_risk.index = pd.to_datetime(full_data_risk.index)
+    full_data_risk = pd.concat([risk_yields, risk_stock], axis=1).dropna()
+    full_data_risk.index = pd.to_datetime(full_data_risk.index)
 
-    test_start_ts = pd.to_datetime(new_start_date)
-    test_data = full_data_risk.loc[full_data_risk.index >= test_start_ts].head(n_test).copy()
+    test_start_ts = pd.to_datetime(new_start_date)
+    test_data = full_data_risk.loc[full_data_risk.index >= test_start_ts].head(n_test).copy()
 
-    var_p, var_h, var_m = [], [], []
-    valid_dates = []
-    total = len(test_data)
+    var_p, var_h, var_m = [], [], []
+    valid_dates = []
+    total = len(test_data)
 
-    for i, current_date in enumerate(test_data.index):
-        historical_slice = full_data_risk.loc[full_data_risk.index <= current_date]
-        rolling_window = historical_slice.tail(window_size)
+    for i, current_date in enumerate(test_data.index):
+        historical_slice = full_data_risk.loc[full_data_risk.index <= current_date]
+        rolling_window = historical_slice.tail(window_size)
 
-        if len(rolling_window) < window_size:
-            if progress_callback:
-                progress_callback(i + 1, total)
-            continue
+        if len(rolling_window) < window_size:
+            if progress_callback:
+                progress_callback(i + 1, total)
+            continue
 
-        mean = rolling_window.mean()
-        cov = rolling_window.cov()
+        mean = rolling_window.mean()
+        cov = rolling_window.cov()
 
-        _, _, vp = calculate_parametric_var(horizon, adj_w, mean, cov, confidence)
-        vh = historical_var(rolling_window, result["final_output"], horizon, confidence)
-        vm = monte_carlo_var(rolling_window, result["final_output"], horizon,
-                              n_simulations=mc_simulations, confidence=confidence,
-                              random_state=random_state)
+        _, _, vp = calculate_parametric_var(horizon, adj_w, mean, cov, confidence)
+        vh = historical_var(rolling_window, result["final_output"], horizon, confidence)
+        vm = monte_carlo_var(rolling_window, result["final_output"], horizon,
+                              n_simulations=mc_simulations, confidence=confidence,
+                              random_state=random_state)
 
-        var_p.append(vp)
-        var_h.append(vh)
-        var_m.append(vm)
-        valid_dates.append(current_date)
+        var_p.append(vp)
+        var_h.append(vh)
+        var_m.append(vm)
+        valid_dates.append(current_date)
 
-        if progress_callback:
-            progress_callback(i + 1, total)
+        if progress_callback:
+            progress_callback(i + 1, total)
 
-    output_df = pd.DataFrame({
-        "return_port": test_data.loc[valid_dates].dot(adj_w),
-        "var_parametric": var_p,
-        "var_historical": var_h,
-        "var_mc": var_m,
-    }, index=valid_dates)
+    output_df = pd.DataFrame({
+        "return_port": test_data.loc[valid_dates].dot(adj_w),
+        "var_parametric": var_p,
+        "var_historical": var_h,
+        "var_mc": var_m,
+    }, index=valid_dates)
 
-    return output_df
+    return output_df
 
 
 def kupiec_test(model_var, actual_return, confidence):
