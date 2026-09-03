@@ -333,7 +333,7 @@ if "last_result" in st.session_state:
     with bt2:
         window_size = st.slider("Rolling estimation window (days)", 60, 252, 100)
     with bt3:
-        bt_mc_sims = st.number_input("MC sims per day (backtest)", 10_000, 50_000, 5_000, 5_000)
+        bt_mc_sims = st.number_input("MC sims per day (backtest)", 10_000, 300_000, 50_000, 10_000)
 
     if st.button("▶ Run backtest"):
         start_str, end_str = st.session_state.last_dates
