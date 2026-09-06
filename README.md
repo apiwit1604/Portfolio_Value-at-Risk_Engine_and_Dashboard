@@ -73,7 +73,6 @@ python examples/run_cli_example.py
 var-portfolio-engine/
 ├── app.py                     # Streamlit dashboard (entry point)
 ├── requirements.txt
-├── .streamlit/config.toml     # dashboard theme
 ├── var_engine/                # the importable engine — no Streamlit dependency here
 │   ├── __init__.py            # public API (see docstring for a code example)
 │   ├── cache.py               # caches Yahoo Finance / FRED fetches (see Performance notes)
