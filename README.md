@@ -1,5 +1,27 @@
 # Portfolio Value-at-Risk Engine & Dashboard
 
+<p align="center">
+  <a href="https://portfolio-value-at-risk-engine-and-dashboard.streamlit.app/">
+    <img src="https://img.shields.io/badge/🚀_Try_the-Live_Dashboard-brightgreen?style=for-the-badge" alt="Try the Live Dashboard">
+  </a>
+  &nbsp;
+  <a href="LICENSE">
+    <img src="https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square" alt="MIT License">
+  </a>
+</p>
+
+<p align="center"><b>👉 <a href="https://portfolio-value-at-risk-engine-and-dashboard.streamlit.app/">portfolio-value-at-risk-engine-and-dashboard.streamlit.app</a> — no install needed, opens straight in your browser.</b></p>
+
+---
+
+## 🤔 TL;DR — what is this, in plain English?
+
+> If you own a mix of investments — some stocks, a bond, a bit of foreign currency, maybe an option — there's one question every investor and every bank risk desk asks: **"On a bad day/month/year, how much could I realistically lose?"**
+>
+> This tool answers that question. You type in your holdings, and it calculates that potential loss (the industry term is **Value-at-Risk**, or **VaR**) using **three different statistical methods** so you're not relying on just one assumption. It can also **rebalance the portfolio automatically** to hit a goal (lowest risk, best risk-adjusted return, etc.), and it **checks its own homework** with a statistical backtest to see whether its risk estimates actually held up against real market history.
+>
+> It's built the way a bank's risk-management desk would build it — same underlying math (Basel-style VaR models), just packaged as a free, interactive dashboard anyone can try. No finance background required to click around; the sections below go deeper for anyone who wants the technical detail.
+
 A multi-asset **Value-at-Risk (VaR)** engine — bonds, stocks, FX, and European
 options/forwards — with three VaR methodologies (Parametric, Historical,
 Monte Carlo), four portfolio-optimization strategies, and Kupiec
@@ -13,10 +35,8 @@ horizon without touching code.
     <img src="./images/dashboard.png" alt="Dashboard" width="700">
   </a>
   <br>
-  <sub>Click image to navigate to the dashboard.</sub>
+  <sub>Click the image (or the badge above) to open the live dashboard.</sub>
 </p>
-
-
 
 Built on live market data: **[Yahoo Finance](https://finance.yahoo.com)**
 (via `yfinance`) for stock/FX/option-underlying prices, and
@@ -31,6 +51,7 @@ Built on live market data: **[Yahoo Finance](https://finance.yahoo.com)**
 
 ## Contents
 
+- [TL;DR — what is this, in plain English?](#-tldr--what-is-this-in-plain-english)
 - [Quick start](#quick-start)
 - [Repository structure](#repository-structure)
 - [Using the dashboard](#using-the-dashboard)
@@ -207,6 +228,8 @@ covariance-based risk model:
 
 ## VaR methodology
 
+> **In plain English:** three different ways of answering "how much could I lose?", so a single wrong assumption doesn't quietly bias the answer.
+
 All three methods estimate the same quantity — the loss level not expected
 to be exceeded over the investment horizon, at the chosen confidence — from
 different assumptions:
@@ -233,6 +256,8 @@ are added (Parametric's linear approximation is weakest there).
 
 ## Optimization strategies
 
+> **In plain English:** instead of you guessing how to split money across your holdings, the engine can pick the split for you based on a goal you choose (lowest risk, best return-per-unit-of-risk, etc.).
+
 | Strategy | Objective |
 |---|---|
 | Given weights | No optimization — uses the weights exactly as entered. |
@@ -250,6 +275,8 @@ optimizer's own message rather than silently returning a bad result.
 ---
 
 ## Backtesting — Kupiec Proportion-of-Failures test
+
+> **In plain English:** a model's risk estimate is only useful if it's actually right. This replays history day-by-day and checks whether real losses breached the model's predicted limit about as often as the model itself said they should.
 
 For each out-of-sample day, the engine rolls a fixed-size estimation window
 forward, recomputes VaR with that day's data, and checks whether the
